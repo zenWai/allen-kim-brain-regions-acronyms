@@ -97,15 +97,6 @@ body {
   color: #667eea !important;
 }
 
-/* Highlight matching rows */
-.highlight-row > td {
-  background: #fff3cd !important;
-}
-
-.highlight-row:hover > td {
-  background: #ffe8a1 !important;
-}
-
 /* Fixed column styling */
 .ant-table-cell-fix-left,
 .ant-table-cell-fix-right {
