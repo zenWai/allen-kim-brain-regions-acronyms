@@ -29,7 +29,7 @@ function App() {
 
   // Load data
   useEffect(() => {
-    fetch('/regions.json')
+    fetch(`${import.meta.env.BASE_URL}regions.json`)
       .then(res => res.json())
       .then((result: RegionData) => {
         setData(result.regions)
