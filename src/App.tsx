@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, type ReactNode } from 'react'
+import { useState, useEffect, type ReactNode } from 'react'
 import { Table, Input, Button, Space, ConfigProvider, theme } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import type { Key } from 'react'
@@ -68,40 +68,32 @@ function App() {
   }, [])
 
   // Column definitions
-  const columns = useMemo<ColumnsType<RegionNode>>(() => {
-    const cols: ColumnsType<RegionNode> = [
-      {
-        title: 'Region Name',
-        dataIndex: 'name',
-        key: 'name',
-        width: 350,
-        fixed: 'left',
-        render: (value: string) => highlightText(value, searchText),
-      }
-    ]
-
-    // Add a column for each atlas
-    atlasKeys.forEach((key, index) => {
-      cols.push({
-        title: atlases[index] || key,
-        dataIndex: key,
-        key: key,
-        width: 180,
-        align: 'center',
-        render: (value: string | null) => {
-          if (!value) {
-            return <span style={{ color: '#ccc' }}>—</span>
-          }
-          return <span style={{ fontFamily: 'monospace', fontWeight: 500 }}>{highlightText(value, searchText)}</span>
+  const columns: ColumnsType<RegionNode> = [
+    {
+      title: 'Region Name',
+      dataIndex: 'name',
+      key: 'name',
+      width: 350,
+      fixed: 'left',
+      render: (value: string) => highlightText(value, searchText),
+    },
+    ...atlasKeys.map((key, index) => ({
+      title: atlases[index] || key,
+      dataIndex: key,
+      key: key,
+      width: 180,
+      align: 'center' as const,
+      render: (value: string | null) => {
+        if (!value) {
+          return <span style={{ color: '#ccc' }}>—</span>
         }
-      })
-    })
-
-    return cols
-  }, [atlases, atlasKeys, searchText])
+        return <span style={{ fontFamily: 'monospace', fontWeight: 500 }}>{highlightText(value, searchText)}</span>
+      }
+    }))
+  ]
 
   // Collect all keys from tree
-  const getAllKeys = useCallback((nodes: RegionNode[]): string[] => {
+  const getAllKeys = (nodes: RegionNode[]): string[] => {
     const keys: string[] = []
     const traverse = (items: RegionNode[]) => {
       for (const item of items) {
@@ -113,75 +105,64 @@ function App() {
     }
     traverse(nodes)
     return keys
-  }, [])
+  }
 
   // Expand all
-  const expandAll = useCallback(() => {
-    const allKeys = getAllKeys(data)
-    setExpandedKeys(allKeys)
-  }, [data, getAllKeys])
+  const expandAll = () => {
+    setExpandedKeys(getAllKeys(data))
+  }
 
   // Collapse all
-  const collapseAll = useCallback(() => {
+  const collapseAll = () => {
     setExpandedKeys([])
-  }, [])
+  }
 
   // Filter data based on search
-  const filteredData = useMemo(() => {
-    if (!searchText.trim()) {
-      return data
-    }
+  const filterTree = (nodes: RegionNode[], searchLower: string): RegionNode[] => {
+    const result: RegionNode[] = []
 
-    const searchLower = searchText.toLowerCase()
+    for (const node of nodes) {
+      const nameMatch = node.name.toLowerCase().includes(searchLower)
+      const acronymMatch = atlasKeys.some(key => {
+        const val = node[key]
+        return typeof val === 'string' && val.toLowerCase().includes(searchLower)
+      })
 
-    const filterTree = (nodes: RegionNode[]): RegionNode[] => {
-      const result: RegionNode[] = []
-
-      for (const node of nodes) {
-        // Check if this node matches
-        const nameMatch = node.name.toLowerCase().includes(searchLower)
-        const acronymMatch = atlasKeys.some(key => {
-          const val = node[key]
-          return typeof val === 'string' && val.toLowerCase().includes(searchLower)
-        })
-
-        // Check if any children match
-        let filteredChildren: RegionNode[] | undefined
-        if (node.children) {
-          filteredChildren = filterTree(node.children)
-        }
-
-        // Include node if it matches or has matching children
-        if (nameMatch || acronymMatch || (filteredChildren && filteredChildren.length > 0)) {
-          result.push({
-            ...node,
-            children: filteredChildren && filteredChildren.length > 0 ? filteredChildren : undefined
-          })
-        }
+      let filteredChildren: RegionNode[] | undefined
+      if (node.children) {
+        filteredChildren = filterTree(node.children, searchLower)
       }
 
-      return result
+      if (nameMatch || acronymMatch || (filteredChildren && filteredChildren.length > 0)) {
+        result.push({
+          ...node,
+          children: filteredChildren && filteredChildren.length > 0 ? filteredChildren : undefined
+        })
+      }
     }
 
-    return filterTree(data)
-  }, [data, searchText, atlasKeys])
+    return result
+  }
+
+  const filteredData = searchText.trim()
+    ? filterTree(data, searchText.toLowerCase())
+    : data
 
   // Auto-expand when searching
   useEffect(() => {
     if (searchText.trim()) {
-      const allKeys = getAllKeys(filteredData)
-      setExpandedKeys(allKeys)
+      setExpandedKeys(getAllKeys(filteredData))
     }
-  }, [searchText, filteredData, getAllKeys])
+  }, [searchText, filteredData])
 
   // Handle expand/collapse
-  const onExpand = useCallback((expanded: boolean, record: RegionNode) => {
+  const onExpand = (expanded: boolean, record: RegionNode) => {
     if (expanded) {
       setExpandedKeys(prev => [...prev, record.key])
     } else {
       setExpandedKeys(prev => prev.filter(k => k !== record.key))
     }
-  }, [])
+  }
 
   return (
     <ConfigProvider
